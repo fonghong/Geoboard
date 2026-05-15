@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>釘板 Geoboard Pro</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* 隱藏滾動條，保持 UI 乾淨 */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    /* 徹底禁用原生的觸控行為 (如雙擊放大) */
+    * { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  </style>
+</head>
+<body class="bg-[#C8E6C9] overflow-hidden fixed inset-0">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+    // --- Inline SVG Icons (Replacing lucide-react for standalone HTML) ---
+    const IconWrapper = ({ size = 24, className = '', strokeWidth = 2, style, children }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+        {children}
+      </svg>
+    );
+
+    const GridIcon = (props) => (
+      <IconWrapper {...props}>
+        <rect width="18" height="18" x="3" y="3" rx="2" />
+        <path d="M3 9h18" /><path d="M3 15h18" /><path d="M9 3v18" /><path d="M15 3v18" />
+      </IconWrapper>
+    );
+
+    const PaintBucketIcon = (props) => (
+      <IconWrapper {...props}>
+        <path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z" />
+        <path d="m5 2 5 5" /><path d="M2 13h15" />
+        <path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z" />
+      </IconWrapper>
+    );
+
+    const XIcon = (props) => (
+      <IconWrapper {...props}>
+        <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+      </IconWrapper>
+    );
+
+    const RotateCcwIcon = (props) => (
+      <IconWrapper {...props}>
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+      </IconWrapper>
+    );
+
+    const HelpCircleIcon = (props) => (
+      <IconWrapper {...props}>
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+        <path d="M12 17h.01" />
+      </IconWrapper>
+    );
+
+    const CheckIcon = (props) => (
+      <IconWrapper {...props}>
+        <polyline points="20 6 9 17 4 12" />
+      </IconWrapper>
+    );
+    // --- End Inline Icons ---
+
+    const COLORS = [
+      { id: 'red', hex: '#E61B46', bg: 'bg-[#E61B46]' },
+      { id: 'pink', hex: '#F08AB1', bg: 'bg-[#F08AB1]' },
+      { id: 'orange', hex: '#F5A623', bg: 'bg-[#F5A623]' },
+      { id: 'yellow', hex: '#F8E71C', bg: 'bg-[#F8E71C]' },
+      { id: 'green', hex: '#7ED321', bg: 'bg-[#7ED321]' },
+      { id: 'lightgreen', hex: '#B8E986', bg: 'bg-[#B8E986]' },
+      { id: 'blue', hex: '#4A90E2', bg: 'bg-[#4A90E2]' },
+      { id: 'lightblue', hex: '#50E3C2', bg: 'bg-[#50E3C2]' },
+      { id: 'purple', hex: '#9013FE', bg: 'bg-[#9013FE]' },
+      { id: 'brown', hex: '#8B572A', bg: 'bg-[#8B572A]' },
+    ];
+
+    const BOARD_OPTIONS = [
+      { id: 'sq-3', type: 'square', size: 3, label: '3x3' },
+      { id: 'sq-4', type: 'square', size: 4, label: '4x4' },
+      { id: 'sq-5', type: 'square', size: 5, label: '5x5' },
+      { id: 'sq-10', type: 'square', size: 10, label: '10x10' },
+      { id: 'iso-5', type: 'isometric', size: 5, label: 'Iso 5' },
+      { id: 'iso-10', type: 'isometric', size: 10, label: 'Iso 10' },
+    ];
+
+    const TRANSLATIONS = {
+      '繁': {
+        title: '釘板', selectBoard: '請選擇釘板：', confirm: '確定', cancel: '取消',
+        hint: '點擊橡皮圈，橡皮圈變粗後拉至其他釘上，圍出不同的圖形。',
+        floatingHint: '請點擊釘子以掛上橡皮圈', output: '輸出'
+      },
+      '简': {
+        title: '钉板', selectBoard: '请选择钉板：', confirm: '确定', cancel: '取消',
+        hint: '点击橡皮圈，橡皮圈变粗后拉至其他钉上，围出不同的图形。',
+        floatingHint: '请点击钉子以挂上橡皮圈', output: '输出'
+      },
+      'ENG': {
+        title: 'Geoboard', selectBoard: 'Select a Board:', confirm: 'Confirm', cancel: 'Cancel',
+        hint: 'Click a band, drag it to other nails to form shapes.',
+        floatingHint: 'Click a nail to hang the band', output: 'Output'
+      }
+    };
+
+    const getTeardropPath = (cx, cy) => {
+      return `M ${cx - 1.5} ${cy + 1} A 1.5 1.5 0 0 1 ${cx + 1.5} ${cy + 1} Q ${cx + 1.5} ${cy + 12} ${cx} ${cy + 14} Q ${cx - 1.5} ${cy + 12} ${cx - 1.5} ${cy + 1} Z`;
+    };
+
+    const getCapsulePath = (p1, p2) => {
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const W = 1.5; 
+      const nx = (-dy / dist) * W;
+      const ny = (dx / dist) * W;
+      return `M ${p1.x + nx} ${p1.y + ny} L ${p2.x + nx} ${p2.y + ny} A ${W} ${W} 0 0 1 ${p2.x - nx} ${p2.y - ny} L ${p1.x - nx} ${p1.y - ny} A ${W} ${W} 0 0 1 ${p1.x + nx} ${p1.y + ny} Z`;
+    };
+
+    const getPolygonPath = (points) => {
+      return `M ${points.map(p => `${p.x} ${p.y}`).join(' L ')} Z`;
+    };
+
+    const getBandPath = (points) => {
+      if (points.length < 2) return '';
+      const isUnitLoop = points.every(p => p.pegId === points[0].pegId);
+      if (isUnitLoop) return getTeardropPath(points[0].x, points[0].y);
+      if (points.length === 2) return getCapsulePath(points[0], points[1]);
+      return getPolygonPath(points);
+    };
+
+    const App = () => {
+      const [lang, setLang] = useState('繁');
+      const [currentBoard, setCurrentBoard] = useState(BOARD_OPTIONS[2]);
+      const [activeColor, setActiveColor] = useState(COLORS[0]);
+      const [bands, setBands] = useState([]);
+      const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+      const [isBoardModalOpen, setIsBoardModalOpen] = useState(false);
+      const [tempBoardSelection, setTempBoardSelection] = useState(BOARD_OPTIONS[2]);
+      const [isFillMode, setIsFillMode] = useState(false);
+      const [isFillPaletteOpen, setIsFillPaletteOpen] = useState(false);
+      const [activeFillColor, setActiveFillColor] = useState(COLORS[1]);
+      const [dragInfo, setDragInfo] = useState(null);
+      const [floatingBand, setFloatingBand] = useState(null);
+
+      const svgRef = useRef(null);
+      const t = TRANSLATIONS[lang];
+
+      const padding = 15;
+      const pegs = [];
+      const { type, size } = currentBoard;
+      const step = (100 - padding * 2) / (size - 1);
+
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          let cx = padding + x * step;
+          let cy = padding + y * step;
+          if (type === 'isometric' && y % 2 !== 0) {
+            cx += step / 2;
+            if (x === size - 1) continue; 
+          }
+          pegs.push({ id: `p-${x}-${y}`, cx, cy });
+        }
+      }
+
+      const getSVGPoint = (e) => {
+        const svg = svgRef.current;
+        if (!svg) return { x: 0, y: 0 };
+        const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+        const pt = svg.createSVGPoint();
+        pt.x = clientX || 0;
+        pt.y = clientY || 0;
+        return pt.matrixTransform(svg.getScreenCTM().inverse());
+      };
+
+      const getNearestPeg = (x, y) => {
+        let nearest = null; let minDist = Infinity;
+        pegs.forEach(p => {
+          const d = Math.sqrt((p.cx - x) ** 2 + (p.cy - y) ** 2);
+          if (d < minDist) { minDist = d; nearest = p; }
+        });
+        return minDist < step * 0.6 ? nearest : null;
+      };
+
+      const handleStart = (e, type, payload) => {
+        if (type !== 'board') e.stopPropagation();
+        if (e.type === 'mousedown' || type === 'edge' || type === 'vertex') e.preventDefault();
+        
+        const { x, y } = getSVGPoint(e);
+        const peg = getNearestPeg(x, y);
+
+        if (type === 'board' && peg && floatingBand) {
+          const newBand = {
+            id: Date.now(), color: floatingBand.color, fillColor: null,
+            points: Array(2).fill({ x: peg.cx, y: peg.cy, pegId: peg.id })
+          };
+          setBands([...bands, newBand]);
+          setFloatingBand(null);
+          return;
+        }
+
+        if (type === 'vertex') {
+          setDragInfo({ type: 'vertex', ...payload });
+        } else if (type === 'edge') {
+          const band = bands.find(b => b.id === payload.bandId);
+          const isUnitLoop = band.points.every(p => p.pegId === band.points[0].pegId);
+
+          if (isUnitLoop) {
+            setDragInfo({ type: 'vertex', bandId: payload.bandId, pointIndex: 1 });
+            return;
+          }
+
+          const p1 = band.points[payload.p1Index];
+          const p2Index = (payload.p1Index + 1) % band.points.length;
+          const p2 = band.points[p2Index];
+
+          const dist1 = Math.sqrt((p1.x - x) ** 2 + (p1.y - y) ** 2);
+          const dist2 = Math.sqrt((p2.x - x) ** 2 + (p2.y - y) ** 2);
+          const SNAP_THRESHOLD = 3;
+
+          if (dist1 <= SNAP_THRESHOLD) {
+            setDragInfo({ type: 'vertex', bandId: payload.bandId, pointIndex: payload.p1Index });
+            return;
+          }
+          if (dist2 <= SNAP_THRESHOLD) {
+            setDragInfo({ type: 'vertex', bandId: payload.bandId, pointIndex: p2Index });
+            return;
+          }
+
+          const newBands = JSON.parse(JSON.stringify(bands));
+          const newBand = newBands.find(b => b.id === payload.bandId);
+          newBand.points.splice(payload.p1Index + 1, 0, { x, y });
+          setBands(newBands);
+          setDragInfo({ type: 'vertex', bandId: payload.bandId, pointIndex: payload.p1Index + 1 });
+        }
+      };
+
+      const handleMove = (e) => {
+        const { x, y } = getSVGPoint(e);
+        if (floatingBand) {
+          setFloatingBand(prev => ({ ...prev, x, y }));
+          return;
+        }
+        if (!dragInfo) return;
+        const newBands = [...bands];
+        const band = newBands.find(b => b.id === dragInfo.bandId);
+        if (!band) return;
+
+        band.points[dragInfo.pointIndex] = { x, y };
+        setBands([...newBands]);
+      };
+
+      const handleEnd = () => {
+        if (!dragInfo) return;
+        const newBands = JSON.parse(JSON.stringify(bands));
+        const band = newBands.find(b => b.id === dragInfo.bandId);
+        
+        if (band) {
+          const pt = band.points[dragInfo.pointIndex];
+          const peg = getNearestPeg(pt.x, pt.y);
+          
+          if (!peg) {
+            if (band.points.length <= 2) {
+              const otherIdx = dragInfo.pointIndex === 0 ? 1 : 0;
+              band.points[dragInfo.pointIndex] = { ...band.points[otherIdx] };
+            } else {
+              band.points.splice(dragInfo.pointIndex, 1);
+            }
+          } else {
+            band.points[dragInfo.pointIndex] = { x: peg.cx, y: peg.cy, pegId: peg.id };
+          }
+
+          if (band.points.length > 2) {
+            const cleaned = [];
+            for (let i = 0; i < band.points.length; i++) {
+              if (cleaned.length === 0 || band.points[i].pegId !== cleaned[cleaned.length - 1].pegId) {
+                cleaned.push(band.points[i]);
+              }
+            }
+            while (cleaned.length > 2 && cleaned[0].pegId === cleaned[cleaned.length - 1].pegId) {
+              cleaned.pop();
+            }
+            if (cleaned.length === 1) cleaned.push({ ...cleaned[0] });
+            band.points = cleaned;
+          }
+        }
+        
+        setBands(newBands.filter(b => b.points.length >= 2));
+        setDragInfo(null);
+      };
+
+      const applyBoardSelection = () => {
+        setCurrentBoard(tempBoardSelection);
+        setBands([]); 
+        setIsBoardModalOpen(false);
+      };
+
+      const handleExport = () => {
+        const svg = svgRef.current;
+        if (!svg) return;
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const img = new Image();
+
+        img.onload = () => {
+          canvas.width = 1000;
+          canvas.height = 1000;
+          ctx.fillStyle = "#fafafa";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const a = document.createElement("a");
+          a.download = "geoboard-export.png";
+          a.href = canvas.toDataURL("image/png");
+          a.click();
+        };
+        img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+      };
+
+      useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (svgRef.current && svgRef.current.contains(e.target)) {
+                setIsPaletteOpen(false); 
+                setIsFillPaletteOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+      }, []);
+
+      return (
+        <div className="flex flex-col h-[100dvh] bg-[#C8E6C9] relative overflow-hidden font-sans fixed inset-0">
+          
+          {/* Header */}
+          <div className="p-2 md:p-4 flex items-center justify-between z-30 shrink-0">
+            <div className="bg-white px-4 md:px-8 py-2 rounded-full shadow-lg border-2 border-emerald-500 flex items-center gap-2">
+              <span className="text-emerald-700 font-black text-xl md:text-2xl tracking-widest italic uppercase">{t.title}</span>
+            </div>
+            <div className="flex gap-1 md:gap-2 bg-white/80 p-1 rounded-xl shadow-sm border border-white">
+              {Object.keys(TRANSLATIONS).map(l => (
+                <button key={l} onClick={() => setLang(l)} className={`px-2 md:px-3 py-1 rounded-lg text-xs md:text-sm font-bold transition-all ${lang === l ? 'bg-emerald-600 text-white' : 'text-emerald-800 hover:bg-emerald-100'}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <main className="flex-1 flex flex-row relative min-h-0">
+            {/* Sidebar */}
+            <aside className="w-16 md:w-24 flex flex-col items-center py-4 gap-3 md:gap-4 z-40 relative shrink-0">
+              <button onClick={() => setIsBoardModalOpen(true)} className="w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl shadow-md border-b-4 border-slate-300 active:translate-y-1 flex items-center justify-center shrink-0">
+                <GridIcon className="text-slate-500 w-6 h-6 md:w-8 md:h-8" strokeWidth={1.5} />
+              </button>
+              
+              <div className="relative shrink-0">
+                <button onClick={() => { setIsPaletteOpen(!isPaletteOpen); setIsFillPaletteOpen(false); setIsFillMode(false); }} className={`w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl shadow-md border-b-4 border-slate-300 active:translate-y-1 flex items-center justify-center ${floatingBand ? 'ring-2 ring-emerald-400' : ''}`}>
+                  <div className="relative w-6 h-6 md:w-8 md:h-8 flex items-center justify-center">
+                     <div className={`w-4 h-4 md:w-6 md:h-6 border-4 rounded-full ${floatingBand ? 'border-emerald-500' : 'border-slate-400'}`} />
+                     <div className={`absolute w-2 h-2 md:w-3 md:h-3 border-2 rounded-full translate-x-2 -translate-y-2 ${floatingBand ? 'border-emerald-300' : 'border-slate-300'}`} />
+                  </div>
+                </button>
+                {isPaletteOpen && (
+                  <div className="absolute left-[60px] md:left-[80px] top-0 z-50 bg-white p-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] grid grid-cols-2 sm:flex sm:flex-row gap-2 border-2 border-slate-100 w-max">
+                    {COLORS.map(c => (
+                      <button key={c.id} onClick={() => { setActiveColor(c); setIsPaletteOpen(false); setFloatingBand({ x: 0, y: 0, color: c.hex }); setIsFillMode(false); }}
+                        className={`w-8 h-8 md:w-10 md:h-10 rounded-full ${c.bg} border-2 border-white shadow-sm hover:scale-110 transition-transform ${activeColor.id === c.id ? 'ring-4 ring-emerald-300' : ''}`} />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="relative shrink-0">
+                <button onClick={() => { if (isFillMode && !isFillPaletteOpen) setIsFillMode(false); else { setIsFillPaletteOpen(!isFillPaletteOpen); setIsPaletteOpen(false); } }} className={`w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl shadow-md border-b-4 border-slate-300 active:translate-y-1 flex items-center justify-center ${isFillMode ? 'bg-blue-50 ring-2 ring-blue-400' : ''}`}>
+                  <PaintBucketIcon className="w-6 h-6 md:w-8 md:h-8" style={{ color: isFillMode && activeFillColor.hex ? activeFillColor.hex : '#94a3b8' }} strokeWidth={1.5} />
+                </button>
+                {isFillPaletteOpen && (
+                  <div className="absolute left-[60px] md:left-[80px] top-0 z-50 bg-white p-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] grid grid-cols-2 sm:flex sm:flex-row gap-2 border-2 border-slate-100 w-max items-center">
+                    <button onClick={() => { setActiveFillColor({ id: 'none', hex: null }); setIsFillMode(true); setIsFillPaletteOpen(false); }} className={`w-8 h-8 md:w-10 md:h-10 rounded-full bg-slate-50 border-2 border-slate-200 shadow-sm hover:scale-110 transition-transform relative flex items-center justify-center overflow-hidden ${activeFillColor.id === 'none' ? 'ring-4 ring-emerald-300' : ''}`}>
+                      <div className="w-full h-1 bg-red-500 rotate-45 absolute" />
+                    </button>
+                    {COLORS.map(c => (
+                      <button key={c.id} onClick={() => { setActiveFillColor(c); setIsFillMode(true); setIsFillPaletteOpen(false); }} className={`w-8 h-8 md:w-10 md:h-10 rounded-full ${c.bg} border-2 border-white shadow-sm hover:scale-110 transition-transform ${activeFillColor.id === c.id ? 'ring-4 ring-emerald-300' : ''}`} />
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <button onClick={() => {setBands([]); setFloatingBand(null); setIsFillMode(false);}} className="w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl shadow-md border-b-4 border-slate-300 active:translate-y-1 flex items-center justify-center shrink-0">
+                <XIcon className="w-6 h-6 md:w-8 md:h-8 text-red-500" strokeWidth={1.5} />
+              </button>
+              
+              <div className="mt-auto mb-2 md:mb-4 flex flex-col gap-3 md:gap-4 shrink-0">
+                <button onClick={() => {setBands([]); setFloatingBand(null);}} className="w-10 h-10 md:w-12 md:h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-lg active:scale-95"><RotateCcwIcon size={20} className="md:w-6 md:h-6" /></button>
+                <button className="w-10 h-10 md:w-12 md:h-12 bg-emerald-600 rounded-full flex items-center justify-center text-white shadow-lg"><HelpCircleIcon size={20} className="md:w-6 md:h-6" /></button>
+              </div>
+            </aside>
+
+            {/* Board Region */}
+            <div className="flex-1 flex items-center justify-center p-4 md:p-8 relative min-h-0 min-w-0" 
+                 onMouseMove={handleMove} onTouchMove={handleMove} onMouseUp={handleEnd} onTouchEnd={handleEnd} onTouchCancel={handleEnd}>
+              <div className="w-full h-full max-w-[85vmin] max-h-[85vmin] aspect-square bg-white shadow-[10px_10px_0px_rgba(0,0,0,0.05)] md:shadow-[20px_20px_0px_rgba(0,0,0,0.05)] relative border-r-4 border-b-4 md:border-r-8 md:border-b-8 border-slate-200">
+                <svg ref={svgRef} viewBox="0 0 100 100" className="w-full h-full overflow-visible touch-none" onMouseDown={(e) => handleStart(e, 'board')} onTouchStart={(e) => handleStart(e, 'board')}>
+                  <rect width="100" height="100" fill="#fafafa" />
+                  {pegs.map(p => (
+                    <g key={p.id}>
+                      <circle cx={p.cx} cy={p.cy + 0.5} r="1.5" fill="#000" fillOpacity="0.1" />
+                      <circle cx={p.cx} cy={p.cy} r="1.2" fill="#555" />
+                    </g>
+                  ))}
+                  {bands.map(band => {
+                    const isUnitLoop = band.points.every(p => p.pegId === band.points[0].pegId);
+                    const pathD = getBandPath(band.points);
+
+                    return (
+                      <g key={band.id}>
+                        <path 
+                          d={pathD} 
+                          fill={band.fillColor || 'transparent'} fillOpacity="0.4"
+                          stroke="transparent" strokeWidth="16" strokeLinejoin="round"
+                          className={isFillMode ? "cursor-pointer" : "cursor-copy"} 
+                          onMouseDown={(e) => {
+                            if (isFillMode) { e.stopPropagation(); setBands(bands.map(b => b.id === band.id ? { ...b, fillColor: activeFillColor.hex } : b)); }
+                            else if (isUnitLoop) handleStart(e, 'edge', { bandId: band.id, p1Index: 0 });
+                          }} 
+                          onTouchStart={(e) => {
+                            if (isFillMode) { e.stopPropagation(); setBands(bands.map(b => b.id === band.id ? { ...b, fillColor: activeFillColor.hex } : b)); }
+                            else if (isUnitLoop) handleStart(e, 'edge', { bandId: band.id, p1Index: 0 });
+                          }} 
+                        />
+
+                        <path 
+                          d={pathD} 
+                          fill="none" stroke={band.color} strokeWidth="2.5" strokeLinejoin="round" 
+                          style={{ pointerEvents: 'none' }} 
+                        />
+                        
+                        {!isFillMode && !isUnitLoop && band.points.map((p, i) => {
+                          const nextP = band.points[(i + 1) % band.points.length];
+                          return (
+                            <line key={`hit-${i}`} x1={p.x} y1={p.y} x2={nextP.x} y2={nextP.y} stroke="transparent" strokeWidth="12" className="cursor-copy" onMouseDown={(e) => handleStart(e, 'edge', { bandId: band.id, p1Index: i })} onTouchStart={(e) => handleStart(e, 'edge', { bandId: band.id, p1Index: i })} />
+                          );
+                        })}
+
+                        {!isFillMode && !isUnitLoop && band.points.map((p, i) => (
+                          <circle key={`v-${i}`} cx={p.x} cy={p.y} r="6" fill="transparent" className="cursor-move" onMouseDown={(e) => handleStart(e, 'vertex', { bandId: band.id, pointIndex: i })} onTouchStart={(e) => handleStart(e, 'vertex', { bandId: band.id, pointIndex: i })} />
+                        ))}
+                        
+                        {band.points.map((p, i) => <circle key={`d-${i}`} cx={p.x} cy={p.y} r="2" fill={band.color} style={{ pointerEvents: 'none' }} />)}
+                      </g>
+                    );
+                  })}
+                  {floatingBand && (
+                    <g style={{ pointerEvents: 'none' }}>
+                      <path d={getTeardropPath(floatingBand.x, floatingBand.y)} fill="none" stroke={floatingBand.color} strokeWidth="2.5" />
+                    </g>
+                  )}
+                </svg>
+              </div>
+            </div>
+
+            <div className="absolute bottom-4 md:bottom-8 right-4 md:right-8 z-40">
+              <button onClick={handleExport} className="bg-gradient-to-b from-amber-400 to-orange-500 text-white px-6 md:px-10 py-2 md:py-3 rounded-full font-bold text-lg md:text-2xl shadow-[0_4px_0_#9F5100] md:shadow-[0_5px_0_#9F5100] active:translate-y-1 active:shadow-none transition-all">
+                {t.output}
+              </button>
+            </div>
+          </main>
+
+          <div className="hidden md:block absolute bottom-4 left-24 text-slate-700 font-bold max-w-xs text-sm leading-relaxed pointer-events-none z-20">
+            {floatingBand ? t.floatingHint : t.hint}
+          </div>
+
+          {/* Board Selection Modal */}
+          {isBoardModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4">
+              <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border-t-8 border-emerald-500 animate-in zoom-in duration-200">
+                <div className="px-4 md:px-8 py-4 md:py-6 border-b flex justify-between items-center bg-slate-50 shrink-0">
+                  <h2 className="text-xl md:text-2xl font-bold text-slate-700">{t.selectBoard}</h2>
+                  <button onClick={() => setIsBoardModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2"><XIcon size={24} className="md:w-7 md:h-7" /></button>
+                </div>
+                
+                <div className="p-4 md:p-8 grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 overflow-y-auto flex-1">
+                  {BOARD_OPTIONS.map((opt) => (
+                    <button key={opt.id} onClick={() => setTempBoardSelection(opt)} className={`relative p-3 md:p-4 bg-white border-4 rounded-xl md:rounded-2xl transition-all flex flex-col items-center gap-2 shadow-sm ${tempBoardSelection.id === opt.id ? 'border-yellow-400 bg-yellow-50' : 'border-slate-100'}`}>
+                      <div className="w-full aspect-square bg-slate-50 rounded-lg flex items-center justify-center p-2">
+                        <svg viewBox="0 0 100 100" className="w-full h-full">
+                          {(() => {
+                            const previewPadding = 10;
+                            const previewStep = (100 - previewPadding * 2) / (opt.size - 1);
+                            const dots = [];
+                            for (let y = 0; y < opt.size; y++) {
+                              for (let x = 0; x < opt.size; x++) {
+                                let cx = previewPadding + x * previewStep;
+                                let cy = previewPadding + y * previewStep;
+                                if (opt.type === 'isometric' && y % 2 !== 0) { cx += previewStep / 2; if (x === opt.size - 1) continue; }
+                                dots.push(<circle key={`${x}-${y}`} cx={cx} cy={cy} r={opt.size >= 10 ? 1.5 : 3} fill="#cbd5e1" />);
+                              }
+                            }
+                            return dots;
+                          })()}
+                        </svg>
+                      </div>
+                      <span className="font-black text-slate-600 italic tracking-tighter text-sm md:text-base">{opt.label}</span>
+                      {tempBoardSelection.id === opt.id && <div className="absolute top-1 right-1 md:top-2 md:right-2 bg-yellow-400 text-white rounded-full p-1"><CheckIcon size={12} className="w-3 h-3 md:w-4 md:h-4" /></div>}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-4 md:p-6 flex flex-row justify-center gap-3 md:gap-6 bg-slate-50 shrink-0 border-t">
+                  <button onClick={applyBoardSelection} className="bg-gradient-to-b from-amber-400 to-orange-500 text-white px-6 md:px-12 py-2 md:py-3 rounded-full font-bold text-lg md:text-xl shadow-[0_4px_0_#9F5100] active:translate-y-1 active:shadow-none w-full md:w-auto">{t.confirm}</button>
+                  <button onClick={() => setIsBoardModalOpen(false)} className="bg-gradient-to-b from-orange-400 to-orange-500 text-white px-6 md:px-12 py-2 md:py-3 rounded-full font-bold text-lg md:text-xl shadow-[0_4px_0_#9F5100] active:translate-y-1 active:shadow-none w-full md:w-auto">{t.cancel}</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
