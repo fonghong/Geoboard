@@ -5,21 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>釘板 Geoboard Pro</title>
   
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- React & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  
-  <!-- Babel for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
-    /* 隱藏滾動條，保持 UI 乾淨 */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    /* 徹底禁用原生的觸控行為 (如雙擊放大) */
     * { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   </style>
 </head>
@@ -29,7 +22,6 @@
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
 
-    // --- Inline SVG Icons (Replacing lucide-react for standalone HTML) ---
     const IconWrapper = ({ size = 24, className = '', strokeWidth = 2, style, children }) => (
       <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
         {children}
@@ -77,7 +69,6 @@
         <polyline points="20 6 9 17 4 12" />
       </IconWrapper>
     );
-    // --- End Inline Icons ---
 
     const COLORS = [
       { id: 'red', hex: '#E61B46', bg: 'bg-[#E61B46]' },
@@ -352,7 +343,6 @@
       return (
         <div className="flex flex-col h-[100dvh] bg-[#C8E6C9] relative overflow-hidden font-sans fixed inset-0">
           
-          {/* Header */}
           <div className="p-2 md:p-4 flex items-center justify-between z-30 shrink-0">
             <div className="bg-white px-4 md:px-8 py-2 rounded-full shadow-lg border-2 border-emerald-500 flex items-center gap-2">
               <span className="text-emerald-700 font-black text-xl md:text-2xl tracking-widest italic uppercase">{t.title}</span>
@@ -367,7 +357,6 @@
           </div>
 
           <main className="flex-1 flex flex-row relative min-h-0">
-            {/* Sidebar */}
             <aside className="w-16 md:w-24 flex flex-col items-center py-4 gap-3 md:gap-4 z-40 relative shrink-0">
               <button onClick={() => setIsBoardModalOpen(true)} className="w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl shadow-md border-b-4 border-slate-300 active:translate-y-1 flex items-center justify-center shrink-0">
                 <GridIcon className="text-slate-500 w-6 h-6 md:w-8 md:h-8" strokeWidth={1.5} />
@@ -416,8 +405,8 @@
               </div>
             </aside>
 
-            {/* Board Region */}
-            <div className="flex-1 flex items-center justify-center p-4 md:p-8 relative min-h-0 min-w-0" 
+            {/* Board Region - Added pb-16/pb-24 to push it upwards */}
+            <div className="flex-1 flex items-center justify-center pt-2 pb-16 md:pt-4 md:pb-24 px-4 md:px-8 relative min-h-0 min-w-0" 
                  onMouseMove={handleMove} onTouchMove={handleMove} onMouseUp={handleEnd} onTouchEnd={handleEnd} onTouchCancel={handleEnd}>
               <div className="w-full h-full max-w-[85vmin] max-h-[85vmin] aspect-square bg-white shadow-[10px_10px_0px_rgba(0,0,0,0.05)] md:shadow-[20px_20px_0px_rgba(0,0,0,0.05)] relative border-r-4 border-b-4 md:border-r-8 md:border-b-8 border-slate-200">
                 <svg ref={svgRef} viewBox="0 0 100 100" className="w-full h-full overflow-visible touch-none" onMouseDown={(e) => handleStart(e, 'board')} onTouchStart={(e) => handleStart(e, 'board')}>
@@ -490,7 +479,6 @@
             {floatingBand ? t.floatingHint : t.hint}
           </div>
 
-          {/* Board Selection Modal */}
           {isBoardModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4">
               <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border-t-8 border-emerald-500 animate-in zoom-in duration-200">
