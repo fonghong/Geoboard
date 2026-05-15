@@ -149,6 +149,7 @@
       const [activeFillColor, setActiveFillColor] = useState(COLORS[1]);
       const [dragInfo, setDragInfo] = useState(null);
       const [floatingBand, setFloatingBand] = useState(null);
+      const [activeBandId, setActiveBandId] = useState(null);
 
       const svgRef = useRef(null);
       const t = TRANSLATIONS[lang];
@@ -198,18 +199,22 @@
         const peg = getNearestPeg(x, y);
 
         if (type === 'board' && peg && floatingBand) {
+          const newBandId = Date.now();
           const newBand = {
-            id: Date.now(), color: floatingBand.color, fillColor: null,
+            id: newBandId, color: floatingBand.color, fillColor: null,
             points: Array(2).fill({ x: peg.cx, y: peg.cy, pegId: peg.id })
           };
           setBands([...bands, newBand]);
           setFloatingBand(null);
+          setActiveBandId(newBandId);
           return;
         }
 
         if (type === 'vertex') {
+          setActiveBandId(payload.bandId);
           setDragInfo({ type: 'vertex', ...payload });
         } else if (type === 'edge') {
+          setActiveBandId(payload.bandId);
           const band = bands.find(b => b.id === payload.bandId);
           const isUnitLoop = band.points.every(p => p.pegId === band.points[0].pegId);
 
@@ -395,7 +400,15 @@
                 )}
               </div>
               
-              <button onClick={() => {setBands([]); setFloatingBand(null); setIsFillMode(false);}} className="w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl shadow-md border-b-4 border-slate-300 active:translate-y-1 flex items-center justify-center shrink-0">
+              <button onClick={() => {
+                if (bands.length > 0) {
+                  const targetId = activeBandId || bands[bands.length - 1].id;
+                  setBands(bands.filter(b => b.id !== targetId));
+                  if (activeBandId === targetId) setActiveBandId(null);
+                }
+                setFloatingBand(null); 
+                setIsFillMode(false);
+              }} className="w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl shadow-md border-b-4 border-slate-300 active:translate-y-1 flex items-center justify-center shrink-0">
                 <XIcon className="w-6 h-6 md:w-8 md:h-8 text-red-500" strokeWidth={1.5} />
               </button>
               
@@ -429,10 +442,12 @@
                           stroke="transparent" strokeWidth="16" strokeLinejoin="round"
                           className={isFillMode ? "cursor-pointer" : "cursor-copy"} 
                           onMouseDown={(e) => {
+                            setActiveBandId(band.id);
                             if (isFillMode) { e.stopPropagation(); setBands(bands.map(b => b.id === band.id ? { ...b, fillColor: activeFillColor.hex } : b)); }
                             else if (isUnitLoop) handleStart(e, 'edge', { bandId: band.id, p1Index: 0 });
                           }} 
                           onTouchStart={(e) => {
+                            setActiveBandId(band.id);
                             if (isFillMode) { e.stopPropagation(); setBands(bands.map(b => b.id === band.id ? { ...b, fillColor: activeFillColor.hex } : b)); }
                             else if (isUnitLoop) handleStart(e, 'edge', { bandId: band.id, p1Index: 0 });
                           }} 
