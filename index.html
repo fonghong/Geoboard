@@ -453,7 +453,7 @@
               </div>
             </aside>
 
-            {/* Board Region - Added pb-16/pb-24 to push it upwards */}
+            {/* Board Region */}
             <div className="flex-1 flex items-center justify-center pt-2 pb-16 md:pt-4 md:pb-24 px-4 md:px-8 relative min-h-0 min-w-0" 
                  onMouseMove={handleMove} onTouchMove={handleMove} onMouseUp={handleEnd} onTouchEnd={handleEnd} onTouchCancel={handleEnd}>
               <div className="w-full h-full max-w-[85vmin] max-h-[85vmin] aspect-square bg-white shadow-[10px_10px_0px_rgba(0,0,0,0.05)] md:shadow-[20px_20px_0px_rgba(0,0,0,0.05)] relative border-r-4 border-b-4 md:border-r-8 md:border-b-8 border-slate-200">
@@ -468,14 +468,26 @@
                   {bands.map(band => {
                     const isUnitLoop = band.points.every(p => p.pegId === band.points[0].pegId);
                     const pathD = getBandPath(band.points);
+                    
+                    let pathPointerEvents = 'none';
+                    let pathStrokeWidth = "0";
+
+                    if (isFillMode) {
+                      pathPointerEvents = 'visibleFill';
+                    } else if (isUnitLoop) {
+                      pathPointerEvents = 'visibleStroke';
+                      pathStrokeWidth = "16";
+                    }
 
                     return (
                       <g key={band.id}>
+                        {/* Main Hitbox & Fill Path */}
                         <path 
                           d={pathD} 
                           fill={band.fillColor || 'transparent'} fillOpacity="0.4"
-                          stroke="transparent" strokeWidth="16" strokeLinejoin="round"
-                          className={isFillMode ? "cursor-pointer" : "cursor-copy"} 
+                          stroke="transparent" strokeWidth={pathStrokeWidth} strokeLinejoin="round"
+                          className={isFillMode ? "cursor-pointer" : (isUnitLoop ? "cursor-copy" : "")} 
+                          style={{ pointerEvents: pathPointerEvents }}
                           onMouseDown={(e) => {
                             setActiveBandId(band.id);
                             if (isFillMode) { e.stopPropagation(); setBands(bands.map(b => b.id === band.id ? { ...b, fillColor: activeFillColor.hex } : b)); }
@@ -488,21 +500,24 @@
                           }} 
                         />
 
+                        {/* Unified Visual Stroke */}
                         <path 
                           d={pathD} 
                           fill="none" stroke={band.color} strokeWidth="2.5" strokeLinejoin="round" 
                           style={{ pointerEvents: 'none' }} 
                         />
                         
+                        {/* Interactive Edges */}
                         {!isFillMode && !isUnitLoop && band.points.map((p, i) => {
                           const nextP = band.points[(i + 1) % band.points.length];
                           return (
-                            <line key={`hit-${i}`} x1={p.x} y1={p.y} x2={nextP.x} y2={nextP.y} stroke="transparent" strokeWidth="12" className="cursor-copy" onMouseDown={(e) => handleStart(e, 'edge', { bandId: band.id, p1Index: i })} onTouchStart={(e) => handleStart(e, 'edge', { bandId: band.id, p1Index: i })} />
+                            <line key={`hit-${i}`} x1={p.x} y1={p.y} x2={nextP.x} y2={nextP.y} stroke="transparent" strokeWidth="12" className="cursor-copy" style={{ pointerEvents: 'visibleStroke' }} onMouseDown={(e) => handleStart(e, 'edge', { bandId: band.id, p1Index: i })} onTouchStart={(e) => handleStart(e, 'edge', { bandId: band.id, p1Index: i })} />
                           );
                         })}
 
+                        {/* Interactive Vertices */}
                         {!isFillMode && !isUnitLoop && band.points.map((p, i) => (
-                          <circle key={`v-${i}`} cx={p.x} cy={p.y} r="6" fill="transparent" className="cursor-move" onMouseDown={(e) => handleStart(e, 'vertex', { bandId: band.id, pointIndex: i })} onTouchStart={(e) => handleStart(e, 'vertex', { bandId: band.id, pointIndex: i })} />
+                          <circle key={`v-${i}`} cx={p.x} cy={p.y} r="6" fill="transparent" className="cursor-move" style={{ pointerEvents: 'visibleFill' }} onMouseDown={(e) => handleStart(e, 'vertex', { bandId: band.id, pointIndex: i })} onTouchStart={(e) => handleStart(e, 'vertex', { bandId: band.id, pointIndex: i })} />
                         ))}
                         
                         {band.points.map((p, i) => <circle key={`d-${i}`} cx={p.x} cy={p.y} r="2" fill={band.color} style={{ pointerEvents: 'none' }} />)}
@@ -529,6 +544,7 @@
             {floatingBand ? t.floatingHint : t.hint}
           </div>
 
+          {/* Board Selection Modal */}
           {isBoardModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4">
               <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border-t-8 border-emerald-500 animate-in zoom-in duration-200">
