@@ -370,16 +370,16 @@
               
               <div className="relative shrink-0">
                 <button onClick={() => { setIsPaletteOpen(!isPaletteOpen); setIsFillPaletteOpen(false); setIsFillMode(false); }} className={`w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl shadow-md border-b-4 border-slate-300 active:translate-y-1 flex items-center justify-center ${floatingBand ? 'ring-2 ring-emerald-400' : ''}`}>
-                  <div className="relative w-6 h-6 md:w-8 md:h-8 flex items-center justify-center">
-                     <div className="w-4 h-4 md:w-6 md:h-6 border-[4px] rounded-full" style={{ borderColor: activeColor.hex }} />
-                     {floatingBand && <div className="absolute w-2 h-2 md:w-3 md:h-3 border-2 rounded-full translate-x-2 -translate-y-2 border-emerald-300" />}
-                  </div>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="8" stroke={activeColor.hex || '#E61B46'} strokeWidth="3" />
+                    {floatingBand && <circle cx="20" cy="4" r="4" fill="#34d399" stroke="none" />}
+                  </svg>
                 </button>
                 {isPaletteOpen && (
                   <div className="absolute left-[60px] md:left-[80px] top-0 z-50 bg-white p-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] grid grid-cols-4 sm:grid-cols-6 gap-3 border-2 border-slate-100 w-max">
                     {COLORS.map(c => (
                       <button key={c.id} onClick={() => { setActiveColor(c); setIsPaletteOpen(false); setFloatingBand({ x: 0, y: 0, color: c.hex }); setIsFillMode(false); }}
-                        className={`w-8 h-8 md:w-10 md:h-10 rounded-full bg-white border-[4px] shadow-sm hover:scale-110 transition-transform ${activeColor.id === c.id ? 'ring-4 ring-emerald-300' : ''}`} 
+                        className={`w-8 h-8 md:w-10 md:h-10 rounded-full bg-white border-[4px] shadow-sm hover:scale-110 transition-transform ${activeColor.id === c.id ? 'ring-4 ring-emerald-300' : ''}`}
                         style={{ borderColor: c.hex }}
                       />
                     ))}
@@ -399,9 +399,17 @@
               </div>
 
               <div className="relative shrink-0">
-                <button onClick={() => { if (isFillMode && !isFillPaletteOpen) setIsFillMode(false); else { setIsFillPaletteOpen(!isFillPaletteOpen); setIsPaletteOpen(false); } }} className={`w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl shadow-md border-b-4 border-slate-300 active:translate-y-1 flex items-center justify-center ${isFillMode ? 'bg-blue-50 ring-2 ring-blue-400' : ''}`}>
+                <button onClick={() => { setIsFillPaletteOpen(!isFillPaletteOpen); setIsPaletteOpen(false); }} className={`w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl shadow-md border-b-4 border-slate-300 active:translate-y-1 flex items-center justify-center ${isFillMode ? 'bg-blue-50 ring-2 ring-blue-400' : ''}`}>
                   <PaintBucketIcon className="w-6 h-6 md:w-8 md:h-8" style={{ color: isFillMode && activeFillColor.hex ? activeFillColor.hex : '#94a3b8' }} strokeWidth={1.5} />
                 </button>
+                {isFillMode && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setIsFillMode(false); setIsFillPaletteOpen(false); }} 
+                    className="absolute -top-1 -right-1 bg-white border-2 border-slate-200 text-red-500 rounded-full p-0.5 shadow-sm hover:scale-110 transition-all z-10"
+                  >
+                    <XIcon size={12} strokeWidth={3} />
+                  </button>
+                )}
                 {isFillPaletteOpen && (
                   <div className="absolute left-[60px] md:left-[80px] top-0 z-50 bg-white p-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] grid grid-cols-4 sm:grid-cols-6 gap-3 border-2 border-slate-100 w-max items-center">
                     <button onClick={() => { setActiveFillColor({ id: 'none', hex: null }); setIsFillMode(true); setIsFillPaletteOpen(false); }} className={`w-8 h-8 md:w-10 md:h-10 rounded-full bg-slate-50 border-2 border-slate-200 shadow-sm hover:scale-110 transition-transform relative flex items-center justify-center overflow-hidden ${activeFillColor.id === 'none' ? 'ring-4 ring-emerald-300' : ''}`}>
@@ -413,7 +421,7 @@
                         style={{ backgroundColor: c.hex }} 
                       />
                     ))}
-                    <div className={`relative w-8 h-8 md:w-10 md:h-10 rounded-full shadow-sm hover:scale-110 transition-transform ${activeFillColor?.id === 'custom' ? 'ring-4 ring-emerald-300' : ''} flex items-center justify-center`}>
+                    <div className={`relative w-8 h-8 md:w-10 md:h-10 rounded-full shadow-sm hover:scale-110 transition-transform ${activeFillColor?.id === 'custom' ? 'ring-4 ring-emerald-300' : ''} flex items-center justify-center overflow-hidden`}>
                       <div className="w-full h-full rounded-full border-2 border-white" style={{ background: 'conic-gradient(red, yellow, green, cyan, blue, magenta, red)' }}></div>
                       <input type="color" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                              onChange={(e) => {
