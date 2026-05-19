@@ -71,16 +71,17 @@
     );
 
     const COLORS = [
-      { id: 'red', hex: '#E61B46', bg: 'bg-[#E61B46]' },
-      { id: 'pink', hex: '#F08AB1', bg: 'bg-[#F08AB1]' },
-      { id: 'orange', hex: '#F5A623', bg: 'bg-[#F5A623]' },
-      { id: 'yellow', hex: '#F8E71C', bg: 'bg-[#F8E71C]' },
-      { id: 'green', hex: '#7ED321', bg: 'bg-[#7ED321]' },
-      { id: 'lightgreen', hex: '#B8E986', bg: 'bg-[#B8E986]' },
-      { id: 'blue', hex: '#4A90E2', bg: 'bg-[#4A90E2]' },
-      { id: 'lightblue', hex: '#50E3C2', bg: 'bg-[#50E3C2]' },
-      { id: 'purple', hex: '#9013FE', bg: 'bg-[#9013FE]' },
-      { id: 'brown', hex: '#8B572A', bg: 'bg-[#8B572A]' },
+      { id: 'red', hex: '#E61B46' },
+      { id: 'pink', hex: '#F08AB1' },
+      { id: 'orange', hex: '#F5A623' },
+      { id: 'yellow', hex: '#F8E71C' },
+      { id: 'green', hex: '#7ED321' },
+      { id: 'lightgreen', hex: '#B8E986' },
+      { id: 'blue', hex: '#4A90E2' },
+      { id: 'lightblue', hex: '#50E3C2' },
+      { id: 'purple', hex: '#9013FE' },
+      { id: 'brown', hex: '#8B572A' },
+      { id: 'black', hex: '#333333' },
     ];
 
     const BOARD_OPTIONS = [
@@ -370,16 +371,29 @@
               <div className="relative shrink-0">
                 <button onClick={() => { setIsPaletteOpen(!isPaletteOpen); setIsFillPaletteOpen(false); setIsFillMode(false); }} className={`w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl shadow-md border-b-4 border-slate-300 active:translate-y-1 flex items-center justify-center ${floatingBand ? 'ring-2 ring-emerald-400' : ''}`}>
                   <div className="relative w-6 h-6 md:w-8 md:h-8 flex items-center justify-center">
-                     <div className={`w-4 h-4 md:w-6 md:h-6 border-4 rounded-full ${floatingBand ? 'border-emerald-500' : 'border-slate-400'}`} />
-                     <div className={`absolute w-2 h-2 md:w-3 md:h-3 border-2 rounded-full translate-x-2 -translate-y-2 ${floatingBand ? 'border-emerald-300' : 'border-slate-300'}`} />
+                     <div className="w-4 h-4 md:w-6 md:h-6 border-[4px] rounded-full" style={{ borderColor: activeColor.hex }} />
+                     {floatingBand && <div className="absolute w-2 h-2 md:w-3 md:h-3 border-2 rounded-full translate-x-2 -translate-y-2 border-emerald-300" />}
                   </div>
                 </button>
                 {isPaletteOpen && (
-                  <div className="absolute left-[60px] md:left-[80px] top-0 z-50 bg-white p-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] grid grid-cols-2 sm:flex sm:flex-row gap-2 border-2 border-slate-100 w-max">
+                  <div className="absolute left-[60px] md:left-[80px] top-0 z-50 bg-white p-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] grid grid-cols-4 sm:grid-cols-6 gap-3 border-2 border-slate-100 w-max">
                     {COLORS.map(c => (
                       <button key={c.id} onClick={() => { setActiveColor(c); setIsPaletteOpen(false); setFloatingBand({ x: 0, y: 0, color: c.hex }); setIsFillMode(false); }}
-                        className={`w-8 h-8 md:w-10 md:h-10 rounded-full ${c.bg} border-2 border-white shadow-sm hover:scale-110 transition-transform ${activeColor.id === c.id ? 'ring-4 ring-emerald-300' : ''}`} />
+                        className={`w-8 h-8 md:w-10 md:h-10 rounded-full bg-white border-[4px] shadow-sm hover:scale-110 transition-transform ${activeColor.id === c.id ? 'ring-4 ring-emerald-300' : ''}`} 
+                        style={{ borderColor: c.hex }}
+                      />
                     ))}
+                    <div className={`relative w-8 h-8 md:w-10 md:h-10 rounded-full bg-white border-[4px] shadow-sm hover:scale-110 transition-transform ${activeColor.id === 'custom' ? 'ring-4 ring-emerald-300' : 'border-slate-200'} flex items-center justify-center overflow-hidden`}>
+                      <div className="w-[80%] h-[80%] rounded-full" style={{ background: 'conic-gradient(red, yellow, green, cyan, blue, magenta, red)' }}></div>
+                      <input type="color" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                             onChange={(e) => {
+                               const hex = e.target.value;
+                               setActiveColor({ id: 'custom', hex: hex });
+                               setIsPaletteOpen(false);
+                               setFloatingBand({ x: 0, y: 0, color: hex });
+                               setIsFillMode(false);
+                             }} />
+                    </div>
                   </div>
                 )}
               </div>
@@ -389,13 +403,26 @@
                   <PaintBucketIcon className="w-6 h-6 md:w-8 md:h-8" style={{ color: isFillMode && activeFillColor.hex ? activeFillColor.hex : '#94a3b8' }} strokeWidth={1.5} />
                 </button>
                 {isFillPaletteOpen && (
-                  <div className="absolute left-[60px] md:left-[80px] top-0 z-50 bg-white p-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] grid grid-cols-2 sm:flex sm:flex-row gap-2 border-2 border-slate-100 w-max items-center">
+                  <div className="absolute left-[60px] md:left-[80px] top-0 z-50 bg-white p-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] grid grid-cols-4 sm:grid-cols-6 gap-3 border-2 border-slate-100 w-max items-center">
                     <button onClick={() => { setActiveFillColor({ id: 'none', hex: null }); setIsFillMode(true); setIsFillPaletteOpen(false); }} className={`w-8 h-8 md:w-10 md:h-10 rounded-full bg-slate-50 border-2 border-slate-200 shadow-sm hover:scale-110 transition-transform relative flex items-center justify-center overflow-hidden ${activeFillColor.id === 'none' ? 'ring-4 ring-emerald-300' : ''}`}>
                       <div className="w-full h-1 bg-red-500 rotate-45 absolute" />
                     </button>
                     {COLORS.map(c => (
-                      <button key={c.id} onClick={() => { setActiveFillColor(c); setIsFillMode(true); setIsFillPaletteOpen(false); }} className={`w-8 h-8 md:w-10 md:h-10 rounded-full ${c.bg} border-2 border-white shadow-sm hover:scale-110 transition-transform ${activeFillColor.id === c.id ? 'ring-4 ring-emerald-300' : ''}`} />
+                      <button key={c.id} onClick={() => { setActiveFillColor(c); setIsFillMode(true); setIsFillPaletteOpen(false); }} 
+                        className={`w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-white shadow-sm hover:scale-110 transition-transform ${activeFillColor.id === c.id ? 'ring-4 ring-emerald-300' : ''}`}
+                        style={{ backgroundColor: c.hex }} 
+                      />
                     ))}
+                    <div className={`relative w-8 h-8 md:w-10 md:h-10 rounded-full shadow-sm hover:scale-110 transition-transform ${activeFillColor?.id === 'custom' ? 'ring-4 ring-emerald-300' : ''} flex items-center justify-center`}>
+                      <div className="w-full h-full rounded-full border-2 border-white" style={{ background: 'conic-gradient(red, yellow, green, cyan, blue, magenta, red)' }}></div>
+                      <input type="color" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                             onChange={(e) => {
+                               const hex = e.target.value;
+                               setActiveFillColor({ id: 'custom', hex: hex });
+                               setIsFillMode(true);
+                               setIsFillPaletteOpen(false);
+                             }} />
+                    </div>
                   </div>
                 )}
               </div>
